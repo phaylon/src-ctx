@@ -97,6 +97,10 @@ impl<'src> Input<'src> {
         Self { source_index, content, byte: 0 }
     }
 
+    pub fn end(&self) -> Self {
+        self.skip(self.len())
+    }
+
     pub fn len(&self) -> usize {
         self.content.len()
     }
