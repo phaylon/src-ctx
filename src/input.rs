@@ -23,7 +23,7 @@ impl Offset {
     }
 
     #[track_caller]
-    pub fn span(&self, other: &Self) -> Span {
+    pub fn span(&self, other: Self) -> Span {
         assert_eq!(self.source_index, other.source_index, "span offsets must be from same source");
         let mut a = self.byte;
         let mut b = other.byte;

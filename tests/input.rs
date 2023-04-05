@@ -51,3 +51,33 @@ fn inputs() {
     assert_eq!(take_char.offset().byte(), 1);
     assert!(input.end().take_char().is_none());
 }
+
+#[test]
+fn offsets() {
+    let (map, index) = test_map("abcdef");
+    let input = map.input(index);
+
+    assert!(input.offset().is_at_start());
+    assert_eq!(input.offset().byte(), 0);
+    assert!(! input.end().offset().is_at_start());
+    assert_eq!(input.end().offset().byte(), 6);
+
+    assert_eq!(input.offset().source_index(), index);
+}
+
+#[test]
+fn spans() {
+    let (map, index) = test_map("abcdef");
+    let input = map.input(index);
+
+    let start = input.skip(1).offset();
+    let end = input.skip(5).offset();
+
+    let span = start.span(end);
+    assert_eq!(span.source_index(), index);
+    assert_eq!(span.start(), start);
+    assert_eq!(span.end(), end);
+    assert_eq!(span.byte_len(), 4);
+    assert_eq!(span.byte_range(), 1..5);
+    assert_eq!(map.span_str(span), "bcde");
+}
