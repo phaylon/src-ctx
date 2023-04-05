@@ -27,6 +27,10 @@ impl SourceMap {
         }
     }
 
+    pub fn contains(&self, idx: SourceIndex) -> bool {
+        self.id == idx.map_id
+    }
+
     #[track_caller]
     pub fn origin(&self, idx: SourceIndex) -> &Origin {
         assert_eq!(self.id, idx.map_id, "origin index must belong to source map");

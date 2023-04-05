@@ -1,9 +1,10 @@
 #![allow(unused)]
 
-use src_ctx::{SourceMap, Origin};
+use src_ctx::{SourceMap, Origin, SourceIndex};
 
-pub fn test_map(content: &str) -> SourceMap {
+pub fn test_map(content: &str) -> (SourceMap, SourceIndex) {
     let mut map = SourceMap::new();
-    map.insert(Origin::Named("test".into()), content.into()).try_into_inserted().unwrap();
-    map
+    let index = map.insert(Origin::Named("test".into()), content.into())
+        .try_into_inserted().unwrap();
+    (map, index)
 }

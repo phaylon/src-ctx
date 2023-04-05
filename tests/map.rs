@@ -1,4 +1,5 @@
 use src_ctx::{SourceMap, Origin, Insert};
+use test_util::test_map;
 
 
 mod test_util;
@@ -37,4 +38,16 @@ fn entries() {
         map.load_file("test-file").unwrap(),
         Insert::Previous(idx_file)
     );
+}
+
+#[test]
+fn map_ids() {
+    let (map_a, index_a) = test_map("content a");
+    let (map_b, index_b) = test_map("content b");
+
+    assert!(map_a.contains(index_a));
+    assert!(map_b.contains(index_b));
+
+    assert!(! map_a.contains(index_b));
+    assert!(! map_b.contains(index_a));
 }
