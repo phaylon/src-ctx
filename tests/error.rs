@@ -57,7 +57,7 @@ fn context_error_display_named() {
 
     let error = input.skip(6).error(ErrorChain("test-chain", Error("test-error")), "test-note")
         .into_context_error(&map);
-    assert_eq!(&format!("{error}"), "test-error in `test`, line 2, column 3");
+    assert_eq!(&format!("{error}"), "test-chain in `test`, line 2, column 3");
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
         |error: test-chain
         |cause: test-error

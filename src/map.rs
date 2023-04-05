@@ -284,10 +284,9 @@ pub(super) enum ReadError {
 }
 
 /// Errors that can occur while loading [`SourceMap`] entries from the file system.
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, Clone)]
 pub enum LoadError {
     /// An error occured while trying to find files in a directory tree.
-    #[error("Failed to search `{}` for `*{}` files: {}", root.display(), extension, error)]
     Find {
         /// The root of the directory tree we searched in.
         root: Arc<Path>,
@@ -297,13 +296,34 @@ pub enum LoadError {
         error: Arc<walkdir::Error>,
     },
     /// An error occured while reading a file.
-    #[error("Failed to read from `{}`: {}", file.display(), error)]
     Read {
         /// The file we tried to read.
         file: Arc<Path>,
         /// The error that occured during reading.
         error: Arc<std::io::Error>,
     },
+}
+
+impl std::error::Error for LoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            LoadError::Find { error, .. } => Some(error),
+            LoadError::Read { error, .. } => Some(error),
+        }
+    }
+}
+
+impl std::fmt::Display for LoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadError::Find { root, extension, .. } => {
+                write!(f, "Failed to fully search `{}` for `*{extension}` files", root.display())
+            },
+            LoadError::Read { file, .. } => {
+                write!(f, "Failed to read from file `{}`", file.display())
+            },
+        }
+    }
 }
 
 struct SourceData {

@@ -16,11 +16,28 @@ use crate::display::{display_fn, count_digits};
 /// print the inner error display followed by in-line source location information.
 ///
 /// Use [`display_with_context`](Self::display_with_context) for the full output.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("{error}{}", self.display_origins_as_suffix())]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextError<E> {
     error: E,
     origins: Arc<[ContextErrorOrigin]>,
+}
+
+impl<E> std::error::Error for ContextError<E>
+where
+    E: std::error::Error,
+{
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.error.source()
+    }
+}
+
+impl<E> fmt::Display for ContextError<E>
+where
+    E: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}", self.error, self.display_origins_as_suffix())
+    }
 }
 
 impl<E> ContextError<E> {
@@ -209,13 +226,30 @@ impl ContextErrorLocation {
 /// Since contextual information is not available, the [`Display`](std::fmt::Display)
 /// implementation will simply output the encapsulated error followed by byte-offset
 /// information.
-#[derive(Debug, Clone, thiserror::Error)]
-#[error("{error} at byte offset {}", offset.byte())]
+#[derive(Debug, Clone)]
 pub struct SourceError<E> {
     error: E,
     offset: Offset,
     offset_note: &'static str,
     context_offset: Option<Offset>,
+}
+
+impl<E> std::error::Error for SourceError<E>
+where
+    E: std::error::Error,
+{
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.error.source()
+    }
+}
+
+impl<E> fmt::Display for SourceError<E>
+where
+    E: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} at byte offset {}", self.error, self.offset.byte())
+    }
 }
 
 impl<E> SourceError<E> {
