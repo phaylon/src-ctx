@@ -95,7 +95,7 @@ impl fmt::Display for ContextErrorOrigin {
         if let Some(ctx_location) = &self.context {
             let ctx_lnum = ctx_location.line_number;
             let ctx_line = &ctx_location.line;
-            if ctx_lnum != self_lnum {
+            if ctx_lnum < self_lnum {
                 writeln!(f, " {ctx_lnum:lnum_width$} | {ctx_line}")?;
                 if ctx_lnum.checked_add(1) != Some(self_lnum) {
                     writeln!(f, " {:lnum_width$} | ...", "")?;
