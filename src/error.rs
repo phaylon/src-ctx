@@ -164,6 +164,22 @@ impl<E> SourceError<E> {
         Self { error, offset, offset_note, context_offset: None }
     }
 
+    pub fn error(&self) -> &E {
+        &self.error
+    }
+
+    pub fn offset(&self) -> Offset {
+        self.offset
+    }
+
+    pub fn context_offset(&self) -> Option<Offset> {
+        self.context_offset
+    }
+
+    pub fn note(&self) -> &'static str {
+        self.offset_note
+    }
+
     pub fn with_context(mut self, offset: Offset) -> Self {
         assert_eq!(self.offset.source_index(), offset.source_index(), "belongs to same source");
         self.context_offset = Some(offset);
