@@ -5,7 +5,7 @@ use crate::{Origin, Offset, SourceMap};
 use crate::display::{display_fn, count_digits};
 
 
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{error}{}", self.display_origins_as_suffix())]
 pub struct ContextError<E> {
     error: E,
@@ -18,6 +18,14 @@ impl<E> ContextError<E> {
         I: IntoIterator<Item = ContextErrorOrigin>,
     {
         Self { error, origins: origins.into_iter().collect() }
+    }
+
+    pub fn error(&self) -> &E {
+        &self.error
+    }
+
+    pub fn error_origins(&self) -> &[ContextErrorOrigin] {
+        &self.origins
     }
 
     pub fn map<M, F>(self, map_error: F) -> ContextError<M>
@@ -70,7 +78,7 @@ impl<E> ContextError<E> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextErrorOrigin {
     origin: Origin,
     note: &'static str,
@@ -96,6 +104,7 @@ impl fmt::Display for ContextErrorOrigin {
         }
         writeln!(f, " {self_lnum:lnum_width$} | {self_line}")?;
         let skipped = &self_line[..self.location.column_number];
+        write!(f, " {:lnum_width$} |", "")?;
         for c in skipped.chars() {
             f.write_char(match c { '\t' => '\t', _ => ' '})?;
         }
@@ -118,11 +127,11 @@ impl ContextErrorOrigin {
         let ContextErrorLocation { line_number, column_number, .. } = &self.location;
         display_fn(move |f| match &self.origin {
             Origin::File(path) => {
-                let prefix = if include_prefix { " at " } else { "" };
+                let prefix = if include_prefix { "at " } else { "" };
                 write!(f, "{}{}:{}:{}", prefix, path.display(), line_number, column_number)
             },
             Origin::Named(name) => {
-                let prefix = if include_prefix { " in " } else { "" };
+                let prefix = if include_prefix { "in " } else { "" };
                 write!(f, "{}`{}`, line {}, column {}", prefix, name, line_number, column_number)
             },
         })
@@ -137,7 +146,7 @@ impl ContextErrorOrigin {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContextErrorLocation {
     line_number: usize,
     column_number: usize,
