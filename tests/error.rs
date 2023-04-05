@@ -1,5 +1,5 @@
 use src_ctx::{ContextError, normalize};
-use test_util::{test_map, test_map_file};
+use test_util::{Error, ErrorChain, test_map, test_map_file};
 
 
 mod test_util;
@@ -10,8 +10,8 @@ fn source_errors() {
     let input = map.input(index);
     let skipped = input.skip(3);
 
-    let error = skipped.error("test-error", "test-note");
-    assert_eq!(error.error(), &"test-error");
+    let error = skipped.error(Error("test-error"), "test-note");
+    assert_eq!(error.error(), &Error("test-error"));
     assert_eq!(error.note(), "test-note");
     assert_eq!(error.offset(), skipped.offset());
     assert!(error.context_offset().is_none());
@@ -29,12 +29,12 @@ fn context_error_origins() {
     let input = map.input(index);
     let skipped = input.skip(3);
 
-    let error_a = skipped.error("test-error", "test-note")
+    let error_a = skipped.error(Error("test-error"), "test-note")
         .with_context(input.offset())
         .into_context_error(&map);
-    assert_eq!(error_a.error(), &"test-error");
+    assert_eq!(error_a.error(), &Error("test-error"));
 
-    let error_b = ContextError::from_origins("test-error", [
+    let error_b = ContextError::with_origins(Error("test-error"), [
         map.context_error_origin(skipped.offset(), "test-note", Some(input.offset())),
     ]);
     assert_eq!(error_a, error_b);
@@ -45,7 +45,7 @@ fn context_error_display_named() {
     let (map, index) = test_map("abc\ndef\nghi");
     let input = map.input(index);
 
-    let error = input.skip(6).error("test-error", "test-note")
+    let error = input.skip(6).error(Error("test-error"), "test-note")
         .into_context_error(&map);
     assert_eq!(&format!("{error}"), "test-error in `test`, line 2, column 3");
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
@@ -55,7 +55,18 @@ fn context_error_display_named() {
         |   |   ^ test-note
     "));
 
-    let error = input.skip(10).error("test-error", "test-note")
+    let error = input.skip(6).error(ErrorChain("test-chain", Error("test-error")), "test-note")
+        .into_context_error(&map);
+    assert_eq!(&format!("{error}"), "test-error in `test`, line 2, column 3");
+    assert_eq!(&format!("{}", error.display_with_context()), &normalize("
+        |error: test-chain
+        |cause: test-error
+        |--> `test`, line 2, column 3
+        | 2 | def
+        |   |   ^ test-note
+    "));
+
+    let error = input.skip(10).error(Error("test-error"), "test-note")
         .with_context(input.offset())
         .into_context_error(&map);
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
@@ -67,7 +78,7 @@ fn context_error_display_named() {
         |   |   ^ test-note
     "));
 
-    let error = input.skip(10).error("test-error", "test-note")
+    let error = input.skip(10).error(Error("test-error"), "test-note")
         .with_context(input.skip(6).offset())
         .into_context_error(&map);
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
@@ -84,7 +95,7 @@ fn context_error_display_file() {
     let (map, index) = test_map_file("abc\ndef\nghi");
     let input = map.input(index);
 
-    let error = input.skip(6).error("test-error", "test-note")
+    let error = input.skip(6).error(Error("test-error"), "test-note")
         .into_context_error(&map);
     assert_eq!(&format!("{error}"), "test-error at test:2:3");
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
@@ -94,7 +105,7 @@ fn context_error_display_file() {
         |   |   ^ test-note
     "));
 
-    let error = input.skip(10).error("test-error", "test-note")
+    let error = input.skip(10).error(Error("test-error"), "test-note")
         .with_context(input.offset())
         .into_context_error(&map);
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("
@@ -106,7 +117,7 @@ fn context_error_display_file() {
         |   |   ^ test-note
     "));
 
-    let error = input.skip(10).error("test-error", "test-note")
+    let error = input.skip(10).error(Error("test-error"), "test-note")
         .with_context(input.skip(6).offset())
         .into_context_error(&map);
     assert_eq!(&format!("{}", error.display_with_context()), &normalize("

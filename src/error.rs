@@ -5,6 +5,17 @@ use crate::{Origin, Offset, SourceMap};
 use crate::display::{display_fn, count_digits};
 
 
+/// A generic error with associated context information.
+///
+/// The contexts in this error wrapper are fully realized and can be displayed
+/// without access to a [`SourceMap`].
+///
+/// # Display
+///
+/// The [`Display`](std::fmt::Display) implementation for this type will only
+/// print the inner error display followed by in-line source location information.
+///
+/// Use [`display_with_context`](Self::display_with_context) for the full output.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{error}{}", self.display_origins_as_suffix())]
 pub struct ContextError<E> {
@@ -13,21 +24,25 @@ pub struct ContextError<E> {
 }
 
 impl<E> ContextError<E> {
-    pub fn from_origins<I>(error: E, origins: I) -> Self
+    /// Construct a context error with a given set of [`ContextErrorOrigin`] values.
+    pub fn with_origins<I>(error: E, origins: I) -> Self
     where
         I: IntoIterator<Item = ContextErrorOrigin>,
     {
         Self { error, origins: origins.into_iter().collect() }
     }
 
+    /// The encapsulated error value.
     pub fn error(&self) -> &E {
         &self.error
     }
 
+    /// All contained [`ContextErrorOrigin`] values.
     pub fn error_origins(&self) -> &[ContextErrorOrigin] {
         &self.origins
     }
 
+    /// Map the encapsulated error value to a new value and/or type.
     pub fn map<M, F>(self, map_error: F) -> ContextError<M>
     where
         F: FnOnce(E) -> M,
@@ -38,16 +53,32 @@ impl<E> ContextError<E> {
         }
     }
 
+    /// Discard the context and nwrap the encapsulated error value.
     pub fn into_error(self) -> E {
         self.error
     }
 
+    /// Construct a [`Display`](std::fmt::Display) proxy showing a full context.
+    ///
+    /// This returns a value that when displayed will print
+    ///
+    /// * The encapsulated error,
+    /// * it's source chain,
+    /// * and an expanded view of the source context.
+    ///
+    /// The carried static note will be used to highlight the error position
+    /// in the content.
     pub fn display_with_context(&self) -> impl fmt::Display + '_
     where
-        E: fmt::Display,
+        E: fmt::Display + std::error::Error,
     {
         display_fn(move |f| {
             writeln!(f, "error: {}", self.error)?;
+            let mut curr: &dyn std::error::Error = &self.error;
+            while let Some(source) = curr.source() {
+                curr = source;
+                writeln!(f, "cause: {}", curr)?;
+            }
             for origin in self.origins.iter() {
                 write!(f, "{origin}")?;
             }
@@ -78,6 +109,10 @@ impl<E> ContextError<E> {
     }
 }
 
+/// The contextual origin of a position in a [`SourceMap`] context.
+///
+/// Can be displayed directly, or passed to [`ContextError::with_origins`] to associate
+/// context objects with an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextErrorOrigin {
     origin: Origin,
@@ -159,6 +194,21 @@ impl ContextErrorLocation {
     }
 }
 
+/// A generic error carrying contextual [`Offset`] data.
+///
+/// These can be constructed without having access to a full source map and later
+/// turned into full [`ContextError`] objects.
+///
+/// An error is centered around a primary error position offset, but can additionally
+/// be given a context offset to also include in the contextual output.
+///
+/// This type carries no allocations unless encapsulated in the inner error
+///
+/// # Display
+///
+/// Since contextual information is not available, the [`Display`](std::fmt::Display)
+/// implementation will simply output the encapsulated error followed by byte-offset
+/// information.
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("{error} at byte offset {}", offset.byte())]
 pub struct SourceError<E> {
@@ -169,32 +219,43 @@ pub struct SourceError<E> {
 }
 
 impl<E> SourceError<E> {
+    /// Construct an error at a specific [`Offset`].
+    ///
+    /// The given note will be used to highlight the error position.
     pub fn new(error: E, offset: Offset, offset_note: &'static str) -> Self {
         Self { error, offset, offset_note, context_offset: None }
     }
 
-    pub fn error(&self) -> &E {
-        &self.error
-    }
-
-    pub fn offset(&self) -> Offset {
-        self.offset
-    }
-
-    pub fn context_offset(&self) -> Option<Offset> {
-        self.context_offset
-    }
-
-    pub fn note(&self) -> &'static str {
-        self.offset_note
-    }
-
+    /// Associate some additional context [`Offset`] with the error.
+    ///
+    /// The line for this offset will also be included in the context.
     pub fn with_context(mut self, offset: Offset) -> Self {
         assert_eq!(self.offset.source_index(), offset.source_index(), "belongs to same source");
         self.context_offset = Some(offset);
         self
     }
 
+    /// The encapsulated error value.
+    pub fn error(&self) -> &E {
+        &self.error
+    }
+
+    /// The [`Offset`] this error is associated with.
+    pub fn offset(&self) -> Offset {
+        self.offset
+    }
+
+    /// The additional context [`Offset`] to be included in the output, if any was given.
+    pub fn context_offset(&self) -> Option<Offset> {
+        self.context_offset
+    }
+
+    /// The note for the error position.
+    pub fn note(&self) -> &'static str {
+        self.offset_note
+    }
+
+    /// Map the encapsulated error value to a new value and/or type.
     pub fn map<M, F>(self, map_error: F) -> SourceError<M>
     where
         F: FnOnce(E) -> M,
@@ -207,12 +268,15 @@ impl<E> SourceError<E> {
         }
     }
 
+    /// Turn the error into a full [`ContextError`] by resolving it through a
+    /// [`SourceMap`].
     pub fn into_context_error(self, map: &SourceMap) -> ContextError<E> {
-        ContextError::from_origins(self.error, [
+        ContextError::with_origins(self.error, [
             map.context_error_origin(self.offset, self.offset_note, self.context_offset),
         ])
     }
 
+    /// Discard the context and unwrap the encapsulated error value.
     pub fn into_error(self) -> E {
         self.error
     }
