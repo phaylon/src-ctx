@@ -243,7 +243,14 @@ impl SourceMap {
         &content[span.byte_range()]
     }
 
-    pub(crate) fn context_error_location(&self, offset: Offset) -> ContextErrorLocation {
+    /// Calculate an offsets byte-position relative to the beginning of the line
+    /// it is on.
+    pub fn byte_offset_on_line(&self, offset: Offset) -> usize {
+        let line = self.line_span(offset);
+        offset.byte() - line.start().byte()
+    }
+
+    fn line_span(&self, offset: Offset) -> Span {
         let content = self.content(offset.source_index());
         let start = content[..offset.byte()]
             .rfind('\n').map(|byte| byte + 1)
@@ -251,6 +258,14 @@ impl SourceMap {
         let end = content[offset.byte()..]
             .find('\n').map(|byte| byte + offset.byte())
             .unwrap_or_else(|| content.len());
+        Span::new(Offset::new(offset.source_index(), start), end - start)
+    }
+
+    pub(crate) fn context_error_location(&self, offset: Offset) -> ContextErrorLocation {
+        let line = self.line_span(offset);
+        let start = line.start().byte();
+        let end = line.end().byte();
+        let content = self.content(offset.source_index());
         let line_number = content[..offset.byte()].split('\n').count();
         let column_number = 1 + (offset.byte() - start);
         ContextErrorLocation::new(

@@ -11,6 +11,10 @@ pub struct Offset {
 }
 
 impl Offset {
+    pub(crate) fn new(source_index: SourceIndex, byte: usize) -> Self {
+        Self { source_index, byte }
+    }
+
     /// The [`SourceIndex`] of the map entry this offset is associated with.
     pub fn source_index(&self) -> SourceIndex {
         self.source_index
@@ -71,6 +75,10 @@ pub struct Span {
 }
 
 impl Span {
+    pub(crate) fn new(offset: Offset, byte_len: usize) -> Self {
+        Self { offset, byte_len }
+    }
+
     /// The [`SourceIndex`] of the map entry this offset is associated with.
     pub fn source_index(&self) -> SourceIndex {
         self.offset.source_index
