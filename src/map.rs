@@ -213,17 +213,21 @@ impl SourceMap {
                 error: error.into(),
             })?;
             let path = entry.path();
-            if path.is_file() && path.ends_with(extension) {
-                open.push(match self.read_file(path) {
-                    Ok(content) => Ok((Origin::File(path.into()), content)),
-                    Err(error) => match error {
-                        ReadError::Previous(index) => Err(index),
-                        ReadError::Read(file, error) => {
-                            return Err(LoadError::Read { file, error });
-                        },
-                    },
-                });
+            if !(
+                path.is_file()
+                && entry.file_name().to_str().map_or(false, |name| name.ends_with(extension))
+            ) {
+                continue;
             }
+            open.push(match self.read_file(path) {
+                Ok(content) => Ok((Origin::File(path.into()), content)),
+                Err(error) => match error {
+                    ReadError::Previous(index) => Err(index),
+                    ReadError::Read(file, error) => {
+                        return Err(LoadError::Read { file, error });
+                    },
+                },
+            });
         }
         Ok(open.into_iter().map(|open| match open {
             Ok((origin, content)) => {
