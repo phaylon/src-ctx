@@ -103,6 +103,24 @@ impl<E> ContextError<E> {
         })
     }
 
+    /// Construct a [`Display`](std::fmt::Display) proxy showing context without
+    /// additional error sources.
+    ///
+    /// This is functionally the same as [`display_with_context`] just without the
+    /// [`std::error::Error`] requirement.
+    pub fn display_with_outer_context(&self) -> impl fmt::Display + '_
+    where
+        E: fmt::Display,
+    {
+        display_fn(move |f| {
+            writeln!(f, "error: {}", self.error)?;
+            for origin in self.origins.iter() {
+                write!(f, "{origin}")?;
+            }
+            Ok(())
+        })
+    }
+
     fn display_origins_as_suffix(&self) -> impl fmt::Display + '_ {
         display_fn(move |f| {
             let mut origins = self.origins.as_ref();
