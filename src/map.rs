@@ -206,7 +206,7 @@ impl SourceMap {
     {
         let root = root.as_ref();
         let mut open = Vec::new();
-        for entry in walkdir::WalkDir::new(root) {
+        for entry in walkdir::WalkDir::new(root).follow_links(true) {
             let entry = entry.map_err(|error| LoadError::Find {
                 root: root.into(),
                 extension: extension.into(),
